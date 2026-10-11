@@ -1,9 +1,8 @@
-"""Suyarima-sama: a passcode-gated, generative falling-shapes visual."""
+"""Suyarima-sama: a looping-video, generative falling-shapes visual."""
 
 from __future__ import annotations
 
 import math
-import os
 import random
 import sys
 from dataclasses import dataclass
@@ -19,7 +18,6 @@ except ImportError:  # Video is optional; the generative scene still runs.
 
 ROOT = Path(__file__).resolve().parent
 VIDEO_PATH = ROOT / "assets" / "loop.mp4"
-ACCESS_CODE = os.environ.get("SUYARIMA_CODE", "suyarima")
 BACKGROUND = (23, 24, 28)
 PURPLE = (153, 42, 174)
 GREEN = (68, 196, 105)
@@ -168,49 +166,17 @@ def spawn_numbers(particles: list[NumberParticle], width: int, height: int, coun
         ))
 
 
-def draw_gate(screen: pygame.Surface, font: pygame.font.Font, small: pygame.font.Font,
-              code: str, message: str, error_time: float) -> None:
-    width, height = screen.get_size()
-    veil = pygame.Surface((width, height), pygame.SRCALPHA)
-    veil.fill((12, 12, 17, 185))
-    screen.blit(veil, (0, 0))
-    panel = pygame.Rect(0, 0, min(440, width - 36), 286)
-    panel.center = (width // 2, height // 2)
-    pygame.draw.rect(screen, (27, 27, 34), panel, border_radius=16)
-    pygame.draw.rect(screen, (110, 56, 133), panel, 1, border_radius=16)
-    title = font.render("SUYARIMA", True, (235, 226, 241))
-    screen.blit(title, title.get_rect(center=(panel.centerx, panel.y + 62)))
-    prompt = small.render("ENTER ACCESS CODE", True, (158, 151, 169))
-    screen.blit(prompt, prompt.get_rect(center=(panel.centerx, panel.y + 108)))
-    box = pygame.Rect(panel.x + 42, panel.y + 132, panel.width - 84, 48)
-    shake = round(math.sin(error_time * 48) * 5) if error_time > 0 else 0
-    box.x += shake
-    pygame.draw.rect(screen, (18, 19, 24), box, border_radius=8)
-    pygame.draw.rect(screen, (104, 74, 119), box, 1, border_radius=8)
-    typed = small.render("•" * len(code) + "▏", True, (224, 213, 234))
-    screen.blit(typed, (box.x + 15, box.y + 14))
-    hint = message if message else "Press Enter to unlock · Esc to quit"
-    hint_color = RED if message else (130, 127, 143)
-    footer = small.render(hint, True, hint_color)
-    screen.blit(footer, footer.get_rect(center=(panel.centerx, panel.y + 220)))
-
-
 def main() -> None:
     pygame.init()
     pygame.display.set_caption("Suyarima-sama — falling signal")
     screen = pygame.display.set_mode((1024, 768), pygame.RESIZABLE)
     clock = pygame.time.Clock()
-    title_font = pygame.font.SysFont("menlo", 27, bold=True)
     small_font = pygame.font.SysFont("menlo", 13)
     shapes = make_shapes(*screen.get_size())
     shape_layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
     font_cache: dict[int, pygame.font.Font] = {}
     particles: list[NumberParticle] = []
     video = VideoLoop(VIDEO_PATH)
-    unlocked = False
-    typed_code = ""
-    message = ""
-    error_time = 0.0
     space_held = False
     summon_timer = 0.0
     running = True
@@ -218,8 +184,6 @@ def main() -> None:
     while running:
         dt = min(clock.tick(60) / 1000.0, 0.05)
         width, height = screen.get_size()
-        error_time = max(0.0, error_time - dt)
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -228,82 +192,56 @@ def main() -> None:
                 shapes = make_shapes(*screen.get_size())
                 shape_layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
             elif event.type == pygame.KEYDOWN:
-                if not unlocked:
-                    if event.key == pygame.K_ESCAPE:
-                        running = False
-                    elif event.key == pygame.K_RETURN:
-                        if typed_code == ACCESS_CODE:
-                            unlocked = True
-                            message = ""
-                        else:
-                            typed_code = ""
-                            message = "Code not recognized"
-                            error_time = 0.28
-                    elif event.key == pygame.K_BACKSPACE:
-                        typed_code = typed_code[:-1]
-                        message = ""
-                    elif event.unicode and event.unicode.isprintable() and len(typed_code) < 48:
-                        typed_code += event.unicode
-                        message = ""
-                elif event.key == pygame.K_SPACE:
+                if event.key == pygame.K_SPACE:
                     space_held = True
                     spawn_numbers(particles, width, height, 16)
             elif event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
                 space_held = False
 
-        if unlocked:
-            background = video.next_frame((width, height))
-            if background is not None:
-                screen.blit(background, (0, 0))
-                shade = pygame.Surface((width, height), pygame.SRCALPHA)
-                shade.fill((12, 12, 18, 95))
-                screen.blit(shade, (0, 0))
-            else:
-                screen.fill(BACKGROUND)
-                # Quiet ambient color bloom behind the wireframe field.
-                bloom = pygame.Surface((width, height), pygame.SRCALPHA)
-                pygame.draw.circle(bloom, (81, 27, 105, 24), (width // 3, height // 3), min(width, height) // 2)
-                pygame.draw.circle(bloom, (28, 98, 58, 16), (width * 3 // 4, height * 3 // 4), min(width, height) // 2)
-                screen.blit(bloom, (0, 0))
-
-            shape_layer.fill((0, 0, 0, 0))
-            for shape in shapes:
-                shape.update(dt, width, height)
-                shape.draw(shape_layer)
-            screen.blit(shape_layer, (0, 0))
-
-            summon_timer += dt
-            while space_held and summon_timer >= 0.045:
-                spawn_numbers(particles, width, height, 3)
-                summon_timer -= 0.045
-            if not space_held:
-                summon_timer = 0
-
-            for particle in particles:
-                particle.update(dt, width, height)
-            particles = [particle for particle in particles if particle.age < particle.lifetime]
-            if len(particles) > 1600:
-                particles = particles[-1600:]
-
-            for particle in particles:
-                font = font_cache.get(particle.size)
-                if font is None:
-                    font = pygame.font.SysFont("menlo", particle.size, bold=True)
-                    font_cache[particle.size] = font
-                particle.draw(screen, font)
-
-            # Minimal control note; fades into the scene instead of competing with it.
-            note = small_font.render("HOLD SPACE TO SUMMON", True, (153, 116, 160))
-            note.set_alpha(155)
-            screen.blit(note, (22, height - 33))
+        background = video.next_frame((width, height))
+        if background is not None:
+            screen.blit(background, (0, 0))
+            shade = pygame.Surface((width, height), pygame.SRCALPHA)
+            shade.fill((12, 12, 18, 95))
+            screen.blit(shade, (0, 0))
         else:
             screen.fill(BACKGROUND)
-            shape_layer.fill((0, 0, 0, 0))
-            for shape in shapes:
-                shape.update(dt, width, height)
-                shape.draw(shape_layer)
-            screen.blit(shape_layer, (0, 0))
-            draw_gate(screen, title_font, small_font, typed_code, message, error_time)
+            # Quiet ambient color bloom behind the wireframe field.
+            bloom = pygame.Surface((width, height), pygame.SRCALPHA)
+            pygame.draw.circle(bloom, (81, 27, 105, 24), (width // 3, height // 3), min(width, height) // 2)
+            pygame.draw.circle(bloom, (28, 98, 58, 16), (width * 3 // 4, height * 3 // 4), min(width, height) // 2)
+            screen.blit(bloom, (0, 0))
+
+        shape_layer.fill((0, 0, 0, 0))
+        for shape in shapes:
+            shape.update(dt, width, height)
+            shape.draw(shape_layer)
+        screen.blit(shape_layer, (0, 0))
+
+        summon_timer += dt
+        while space_held and summon_timer >= 0.045:
+            spawn_numbers(particles, width, height, 3)
+            summon_timer -= 0.045
+        if not space_held:
+            summon_timer = 0
+
+        for particle in particles:
+            particle.update(dt, width, height)
+        particles = [particle for particle in particles if particle.age < particle.lifetime]
+        if len(particles) > 1600:
+            particles = particles[-1600:]
+
+        for particle in particles:
+            font = font_cache.get(particle.size)
+            if font is None:
+                font = pygame.font.SysFont("menlo", particle.size, bold=True)
+                font_cache[particle.size] = font
+            particle.draw(screen, font)
+
+        # Minimal control note; fades into the scene instead of competing with it.
+        note = small_font.render("HOLD SPACE TO SUMMON", True, (153, 116, 160))
+        note.set_alpha(155)
+        screen.blit(note, (22, height - 33))
 
         pygame.display.flip()
 
