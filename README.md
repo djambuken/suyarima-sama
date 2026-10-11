@@ -1,6 +1,6 @@
 # Suyarima-sama
 
-ANIME LOOP + PYTHON
+Looping anime video + Space-bar Python code + HUD
 
 The app centers on its looping video, compact HUD, and Space-bar code effect. Hold **Space** to summon widely spaced, pixel-style Python snippets with numeric characters in a green terminal glow.
 
