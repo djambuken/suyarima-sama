@@ -1,4 +1,4 @@
-"""Suyarima-sama: a looping-video, generative falling-shapes visual."""
+"""Suyarima-sama: a looping-video digital rain of falling Python code."""
 
 from __future__ import annotations
 
@@ -19,64 +19,28 @@ except ImportError:  # Video is optional; the generative scene still runs.
 ROOT = Path(__file__).resolve().parent
 VIDEO_PATH = ROOT / "assets" / "loop.mp4"
 BACKGROUND = (23, 24, 28)
-PURPLE = (153, 42, 174)
-GREEN = (68, 196, 105)
-RED = (255, 53, 74)
-
-
-def rotate(point: tuple[float, float], angle: float) -> tuple[float, float]:
-    x, y = point
-    cosine, sine = math.cos(angle), math.sin(angle)
-    return x * cosine - y * sine, x * sine + y * cosine
-
-
-@dataclass
-class Shape:
-    x: float
-    y: float
-    radius: float
-    sides: int
-    color: tuple[int, int, int]
-    speed: float
-    rotation: float
-    spin: float
-    alpha: int = 150
-
-    def points(self) -> list[tuple[int, int]]:
-        vertices = []
-        for index in range(self.sides):
-            angle = math.tau * index / self.sides
-            wobble = 0.78 + random.Random(index + self.sides).random() * 0.34
-            px, py = rotate((math.cos(angle) * self.radius * wobble,
-                             math.sin(angle) * self.radius * wobble), self.rotation)
-            vertices.append((round(self.x + px), round(self.y + py)))
-        return vertices
-
-    def update(self, dt: float, width: int, height: int) -> None:
-        self.y += self.speed * dt
-        self.x += math.sin(self.y * 0.004 + self.rotation) * 8 * dt
-        self.rotation += self.spin * dt
-        if self.y - self.radius > height + 10:
-            self.y = -self.radius - random.randrange(20, 180)
-            self.x = random.randrange(max(width, 1))
-
-    def draw(self, target: pygame.Surface) -> None:
-        vertices = self.points()
-        pygame.draw.polygon(target, (*self.color, 15), vertices, 0)
-        pygame.draw.polygon(target, (*self.color, self.alpha), vertices, 1)
-        # A second, offset outline gives the thin, fractured wireframe look.
-        inner = [(int(self.x + (x - self.x) * 0.72 + 3),
-                  int(self.y + (y - self.y) * 0.72 - 2)) for x, y in vertices]
-        pygame.draw.polygon(target, (*self.color, max(35, self.alpha - 45)), inner, 1)
+CODE_GREEN = (112, 255, 176)
+CODE_GLOW = (24, 112, 76)
+CODE_SNIPPETS = (
+    "print(42)",
+    "x = 0b1010",
+    "range(0, 8)",
+    "int(0x2A)",
+    "n ** 2  # 16",
+    "for i in range(9):",
+    "value = 10101",
+    "sum([2, 4, 8])",
+    "if count == 7:",
+)
 
 
 @dataclass
-class NumberParticle:
+class CodeParticle:
     x: float
     y: float
     velocity_x: float
     velocity_y: float
-    digit: str
+    code: str
     size: int
     age: float = 0
     lifetime: float = 8.0
@@ -95,12 +59,15 @@ class NumberParticle:
 
     def draw(self, target: pygame.Surface, font: pygame.font.Font) -> None:
         fade = min(1.0, max(0.0, (self.lifetime - self.age) / 1.2))
-        glyph = font.render(self.digit, True, RED)
+        glyph = font.render(self.code, True, CODE_GREEN)
+        glow = font.render(self.code, True, CODE_GLOW)
+        size = (glyph.get_width() * 2, glyph.get_height() * 2)
+        glyph = pygame.transform.scale(glyph, size)
+        glow = pygame.transform.scale(glow, size)
         glyph.set_alpha(round(235 * fade))
-        glow = font.render(self.digit, True, (135, 20, 36))
-        glow.set_alpha(round(95 * fade))
-        rect = glyph.get_rect(center=(round(self.x), round(self.y)))
-        target.blit(glow, rect.move(1, 2))
+        glow.set_alpha(round(110 * fade))
+        rect = glyph.get_rect(topleft=(round(self.x), round(self.y)))
+        target.blit(glow, rect.move(2, 2))
         target.blit(glyph, rect)
 
 
@@ -138,31 +105,20 @@ class VideoLoop:
             self.capture.release()
 
 
-def make_shapes(width: int, height: int, amount: int = 54) -> list[Shape]:
-    return [
-        Shape(
-            x=random.uniform(0, width),
-            y=random.uniform(-height, height),
-            radius=random.choices([random.uniform(5, 20), random.uniform(22, 66)], [0.72, 0.28])[0],
-            sides=random.choice([3, 4, 5, 6, 7]),
-            color=random.choice([PURPLE, GREEN, (105, 63, 143)]),
-            speed=random.uniform(5, 29),
-            rotation=random.random() * math.tau,
-            spin=random.uniform(-0.12, 0.12),
-            alpha=random.randint(70, 175),
-        )
-        for _ in range(amount)
-    ]
-
-
-def spawn_numbers(particles: list[NumberParticle], width: int, height: int, count: int = 12) -> None:
-    origin_x = random.uniform(width * 0.18, width * 0.82)
-    origin_y = random.uniform(-36, max(80, height * 0.16))
-    for _ in range(count):
-        particles.append(NumberParticle(
-            x=origin_x + random.gauss(0, 15), y=origin_y + random.gauss(0, 7),
-            velocity_x=random.uniform(-32, 32), velocity_y=random.uniform(25, 110),
-            digit=str(random.randrange(10)), size=random.randint(17, 29),
+def spawn_code(particles: list[CodeParticle], width: int, count: int = 6) -> None:
+    lane_count = max(1, min(count, width // 180 or 1))
+    lane_width = width / lane_count
+    lane_offset = random.randrange(lane_count)
+    for index in range(count):
+        lane = (index + lane_offset) % lane_count
+        x = lane * lane_width + random.uniform(lane_width * 0.12, lane_width * 0.48)
+        particles.append(CodeParticle(
+            x=min(x, max(0, width - 220)),
+            y=random.uniform(-110, -24),
+            velocity_x=random.uniform(-12, 12),
+            velocity_y=random.uniform(28, 58),
+            code=random.choice(CODE_SNIPPETS),
+            size=random.randint(8, 10),
         ))
 
 
@@ -172,10 +128,8 @@ def main() -> None:
     screen = pygame.display.set_mode((1024, 768), pygame.RESIZABLE)
     clock = pygame.time.Clock()
     small_font = pygame.font.SysFont("menlo", 13)
-    shapes = make_shapes(*screen.get_size())
-    shape_layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
     font_cache: dict[int, pygame.font.Font] = {}
-    particles: list[NumberParticle] = []
+    particles: list[CodeParticle] = []
     video = VideoLoop(VIDEO_PATH)
     space_held = False
     summon_timer = 0.0
@@ -189,12 +143,10 @@ def main() -> None:
                 running = False
             elif event.type == pygame.VIDEORESIZE:
                 screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
-                shapes = make_shapes(*screen.get_size())
-                shape_layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     space_held = True
-                    spawn_numbers(particles, width, height, 16)
+                    spawn_code(particles, width, 4)
             elif event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
                 space_held = False
 
@@ -206,35 +158,29 @@ def main() -> None:
             screen.blit(shade, (0, 0))
         else:
             screen.fill(BACKGROUND)
-            # Quiet ambient color bloom behind the wireframe field.
+            # Subtle ambient color bloom behind the falling code.
             bloom = pygame.Surface((width, height), pygame.SRCALPHA)
             pygame.draw.circle(bloom, (81, 27, 105, 24), (width // 3, height // 3), min(width, height) // 2)
             pygame.draw.circle(bloom, (28, 98, 58, 16), (width * 3 // 4, height * 3 // 4), min(width, height) // 2)
             screen.blit(bloom, (0, 0))
 
-        shape_layer.fill((0, 0, 0, 0))
-        for shape in shapes:
-            shape.update(dt, width, height)
-            shape.draw(shape_layer)
-        screen.blit(shape_layer, (0, 0))
-
         summon_timer += dt
-        while space_held and summon_timer >= 0.045:
-            spawn_numbers(particles, width, height, 3)
-            summon_timer -= 0.045
+        while space_held and summon_timer >= 0.28:
+            spawn_code(particles, width, 1)
+            summon_timer -= 0.28
         if not space_held:
             summon_timer = 0
 
         for particle in particles:
             particle.update(dt, width, height)
         particles = [particle for particle in particles if particle.age < particle.lifetime]
-        if len(particles) > 1600:
-            particles = particles[-1600:]
+        if len(particles) > 180:
+            particles = particles[-180:]
 
         for particle in particles:
             font = font_cache.get(particle.size)
             if font is None:
-                font = pygame.font.SysFont("menlo", particle.size, bold=True)
+                font = pygame.font.SysFont("monospace", particle.size, bold=True)
                 font_cache[particle.size] = font
             particle.draw(screen, font)
 
