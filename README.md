@@ -17,10 +17,4 @@ python -m pip install -r requirements.txt
 python suyarima-sama.py
 ```
 
-On Windows, activate the environment with `.venv\Scripts\activate` instead of `source .venv/bin/activate`.
-
-The app plays `assets/loop.mp4` as its background when available. If the video or OpenCV is unavailable, it uses a dark fallback background. OpenCV handles video playback.
-
 The resizable window is titled **suyarima-sama**. The top-left HUD reads **SPACE BAR = CODE**. Tap **Space** for a small burst or hold it to summon code continuously. Close the window to quit.
-
-Replace `assets/loop.mp4` to use different footage.
