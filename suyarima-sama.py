@@ -1,4 +1,4 @@
-"""Suyarima-sama: a looping-video digital rain of falling Python code."""
+"""Suyarima-sama: looping video, a Space-triggered code effect, and its HUD."""
 
 from __future__ import annotations
 
@@ -185,7 +185,7 @@ def main() -> None:
             particle.draw(screen, font)
 
         # Keep the control hint plain text, framed as a compact HUD in the corner.
-        command = small_font.render("SPACE BAR = NUMBERS", True, (190, 232, 207))
+        command = small_font.render("SPACE BAR = CODE", True, (190, 232, 207))
         padding_x, padding_y = 10, 7
         hud = pygame.Surface(
             (command.get_width() + padding_x * 2, command.get_height() + padding_y * 2),

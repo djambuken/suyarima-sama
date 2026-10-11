@@ -2,6 +2,8 @@
 
 ANIME LOOP + PYTHON
 
+The app centers on its looping video, compact HUD, and Space-bar code effect. Hold **Space** to summon widely spaced, pixel-style Python snippets with numeric characters in a green terminal glow.
+
 ## Run
 
 Use Python 3.10 or newer. On macOS or Linux, paste this into Terminal to download and run the app:
@@ -15,4 +17,10 @@ python -m pip install -r requirements.txt
 python suyarima-sama.py
 ```
 
-The window is resizable and titled **suyarima-sama**. The top-left HUD shows **SPACE BAR = NUMBERS**; hold **Space** for a stream of falling code, or tap for a small burst. Close the window to quit.
+On Windows, activate the environment with `.venv\Scripts\activate` instead of `source .venv/bin/activate`.
+
+The app plays `assets/loop.mp4` as its background when available. If the video or OpenCV is unavailable, it uses a dark fallback background. OpenCV handles video playback.
+
+The resizable window is titled **suyarima-sama**. The top-left HUD reads **SPACE BAR = CODE**. Tap **Space** for a small burst or hold it to summon code continuously. Close the window to quit.
+
+Replace `assets/loop.mp4` to use different footage.
