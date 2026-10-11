@@ -168,7 +168,7 @@ def spawn_numbers(particles: list[NumberParticle], width: int, height: int, coun
 
 def main() -> None:
     pygame.init()
-    pygame.display.set_caption("Suyarima-sama — falling signal")
+    pygame.display.set_caption("suyarima-sama")
     screen = pygame.display.set_mode((1024, 768), pygame.RESIZABLE)
     clock = pygame.time.Clock()
     small_font = pygame.font.SysFont("menlo", 13)
@@ -238,10 +238,17 @@ def main() -> None:
                 font_cache[particle.size] = font
             particle.draw(screen, font)
 
-        # Minimal control note; fades into the scene instead of competing with it.
-        note = small_font.render("HOLD SPACE TO SUMMON", True, (153, 116, 160))
-        note.set_alpha(155)
-        screen.blit(note, (22, height - 33))
+        # Keep the control hint plain text, framed as a compact HUD in the corner.
+        command = small_font.render("SPACE BAR = NUMBERS", True, (190, 232, 207))
+        padding_x, padding_y = 10, 7
+        hud = pygame.Surface(
+            (command.get_width() + padding_x * 2, command.get_height() + padding_y * 2),
+            pygame.SRCALPHA,
+        )
+        pygame.draw.rect(hud, (10, 15, 20, 185), hud.get_rect(), border_radius=4)
+        pygame.draw.rect(hud, (91, 185, 133, 190), hud.get_rect(), 1, border_radius=4)
+        hud.blit(command, (padding_x, padding_y))
+        screen.blit(hud, (18, 18))
 
         pygame.display.flip()
 
